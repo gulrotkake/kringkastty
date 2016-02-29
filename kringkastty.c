@@ -74,7 +74,8 @@
 #define _(FOO) FOO
 
 #ifdef HAVE_openpty
-#include <libutil.h>
+#include <pty.h>
+#include <utmp.h>
 #endif
 
 #if defined(SVR4) && !defined(CDEL)
