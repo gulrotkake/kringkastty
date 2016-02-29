@@ -92,6 +92,7 @@
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 const struct mg_str s_get_method = MG_STR("GET");
+const char *server_port = "8080";
 
 void done(void);
 void fail(void);
@@ -142,13 +143,14 @@ main(argc, argv)
 
     }
 
+    printf("Starting server on port %s. Type 'exit' to stop recording & broadcasting.\n", server_port);
     int child1 = fork();
     if (child1 == 0) { // web server
         close(fds[1]);
         // Get terminal size
         struct winsize w;
         ioctl(0, TIOCGWINSZ, &w);
-        dowebserver("8080", fds[0], &w);
+        dowebserver(server_port, fds[0], &w);
         close(fds[1]);
     } else { // ttyrec
         close(fds[0]);
@@ -249,11 +251,6 @@ is_equal(const struct mg_str *s1, const struct mg_str *s2) {
 
 void
 ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
-    //struct http_message *hm = (struct http_message *) ev_data;
-    //struct websocket_message *wm = (struct websocket_message *) ev_data;
-    struct mg_serve_http_opts opts = { .document_root = "." };
-    opts.enable_directory_listing = "yes";
-
     switch (ev) {
     case MG_EV_HTTP_REQUEST:
         nc->flags |= MG_F_SEND_AND_CLOSE;
