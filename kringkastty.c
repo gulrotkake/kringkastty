@@ -126,6 +126,13 @@ int	aflg;
 int	uflg;
 int fds[2];
 
+static void
+resize(int dummy) {
+	/* transmit window change information to the child */
+	(void) ioctl(0, TIOCGWINSZ, (char *)&win);
+	(void) ioctl(master, TIOCSWINSZ, (char *)&win);
+}
+
 int
 main(argc, argv)
 	int argc;
@@ -165,6 +172,7 @@ ttymain(argc, argv)
 	int argc;
 	char *argv[];
 {
+	struct sigaction sa;
 	extern int optind;
 	int ch;
 	void finish();
@@ -207,8 +215,10 @@ ttymain(argc, argv)
 
 	getmaster();
 	fixtty();
-
-	(void) signal(SIGCHLD, finish);
+        sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+	sa.sa_handler = finish;
+	sigaction(SIGCHLD, &sa, NULL);
 	child = fork();
 	if (child < 0) {
 		perror("fork");
@@ -220,11 +230,16 @@ ttymain(argc, argv)
 			perror("fork");
 			fail();
 		}
-		if (child)
+		if (child) {
+			sa.sa_flags = SA_RESTART;
+			sigaction(SIGCHLD, &sa, NULL);
 			dooutput();
-		else
+		} else
 			doshell(command);
 	}
+	sa.sa_handler = resize;
+	sa.sa_flags = SA_RESTART;
+	sigaction(SIGWINCH, &sa, NULL);
 	doinput();
 
 	return 0;
@@ -320,14 +335,10 @@ finish()
 	union wait status;
 #endif /* !SVR4 */
 	register int pid;
-	register int die = 0;
 
 	while ((pid = wait3((int *)&status, WNOHANG, 0)) > 0)
 		if (pid == child)
-			die = 1;
-
-	if (die)
-		done();
+			break;
 }
 
 struct linebuf {
@@ -361,8 +372,8 @@ check_line (const char *line)
     }
 }
 
-void
-check_output(const char *str, int len)
+static void
+uu_check_output(const char *str, int len)
 {
     static struct linebuf lbuf = {"", 0};
     int i;
@@ -387,6 +398,23 @@ check_output(const char *str, int len)
     }
 }
 
+static int
+check_output(char *str, int len)
+{
+    char *p;
+
+    /* If we see query string, remove it */
+    /* ESC [ > 0 c : Send Device Attributes */
+    if (len >= 5 && (p = strstr(str, "\e[>0c")) != NULL) {
+       if (len == 5)
+           return 0;
+       memmove(p, p+5, len-5+1-(p-str));
+       return len-5;
+    }
+
+    return len;
+}
+
 void
 dooutput()
 {
@@ -407,12 +435,14 @@ dooutput()
         write(fds[1], obuf, cc);
 
 		if (uflg)
-		    check_output(obuf, cc);
+		    uu_check_output(obuf, cc);
 		h.len = cc;
 		gettimeofday(&h.tv, NULL);
 		(void) write(1, obuf, cc);
-		(void) write_header(fscript, &h);
-		(void) fwrite(obuf, 1, cc, fscript);
+               if ((cc = check_output(obuf, cc))) {
+                       (void) write_header(fscript, &h);
+                       (void) fwrite(obuf, 1, cc, fscript);
+               }
 	}
 	done();
 }
@@ -438,9 +468,9 @@ doshell(const char* command)
 	(void) close(slave);
 
 	if (!command) {
-		execl(shell, strrchr(shell, '/') + 1, "-i", 0);
+		execl(shell, strrchr(shell, '/') + 1, "-i", NULL);
 	} else {
-		execl(shell, strrchr(shell, '/') + 1, "-c", command, 0);	
+		execl(shell, strrchr(shell, '/') + 1, "-c", command, NULL);	
 	}
 	perror(shell);
 	fail();
@@ -453,6 +483,9 @@ fixtty()
 
 	rtt = tt;
 #if defined(SVR4)
+#if !defined(XCASE)
+#define XCASE 0
+#endif
 	rtt.c_iflag = 0;
 	rtt.c_lflag &= ~(ISIG|ICANON|XCASE|ECHO|ECHOE|ECHOK|ECHONL);
 	rtt.c_oflag = OPOST;
@@ -577,8 +610,10 @@ getslave()
 			fail();
 		}
 #endif
-		(void) ioctl(0, TIOCGWINSZ, (char *)&win);
 	}
+       (void) tcsetattr(slave, TCSAFLUSH, &tt);
+       (void) ioctl(slave, TIOCSWINSZ, (char *)&win);
+       (void) ioctl(slave, TIOCSCTTY, 0);
 #else /* !SVR4 */
 #ifndef HAVE_openpty
 	line[strlen("/dev/")] = 't';

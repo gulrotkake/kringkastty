@@ -33,6 +33,8 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <endian.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,50 +42,27 @@
 
 #include "kringkastty.h"
 
-#define SWAP_ENDIAN(val) ((unsigned int) ( \
-    (((unsigned int) (val) & (unsigned int) 0x000000ffU) << 24) | \
-    (((unsigned int) (val) & (unsigned int) 0x0000ff00U) <<  8) | \
-    (((unsigned int) (val) & (unsigned int) 0x00ff0000U) >>  8) | \
-    (((unsigned int) (val) & (unsigned int) 0xff000000U) >> 24)))
+#define SWAP_ENDIAN(val) ((uint32_t) ( \
+    (((uint32_t) (val) & (uint32_t) 0x000000ffU) << 24) | \
+    (((uint32_t) (val) & (uint32_t) 0x0000ff00U) <<  8) | \
+    (((uint32_t) (val) & (uint32_t) 0x00ff0000U) >>  8) | \
+    (((uint32_t) (val) & (uint32_t) 0xff000000U) >> 24)))
 
-static int 
-is_little_endian ()
+static uint32_t
+convert_to_little_endian (uint32_t x)
 {
-    static int retval = -1;
-
-    if (retval == -1) {
-	int n = 1;
-	char *p = (char *)&n;
-	char x[] = {1, 0, 0, 0};
-
-	assert(sizeof(int) == 4);
-
-	if (memcmp(p, x, 4) == 0) {
-	    retval = 1;
-	} else {
-	    retval = 0;
-	}
-    }
-
-    return retval;
-}
-
-static int
-convert_to_little_endian (int x)
-{
-    if (is_little_endian()) {
-	return x;
-    } else {
-	return SWAP_ENDIAN(x);
-    }
+#if BYTE_ORDER == LITTLE_ENDIAN
+    return x;
+#else
+    return SWAP_ENDIAN(x);
+#endif
 }
 
 int
 read_header (FILE *fp, Header *h)
 {
-    int buf[3];
-
-    if (fread(buf, sizeof(int), 3, fp) == 0) {
+    uint32_t buf[3];
+    if (fread(buf, sizeof(uint32_t), 3, fp) == 0) {
 	return 0;
     }
 
@@ -97,13 +76,13 @@ read_header (FILE *fp, Header *h)
 int
 write_header (FILE *fp, Header *h)
 {
-    int buf[3];
+    uint32_t buf[3];
 
     buf[0] = convert_to_little_endian(h->tv.tv_sec);
     buf[1] = convert_to_little_endian(h->tv.tv_usec);
     buf[2] = convert_to_little_endian(h->len);
 
-    if (fwrite(buf, sizeof(int), 3, fp) == 0) {
+    if (fwrite(buf, sizeof(uint32_t), 3, fp) == 0) {
 	return 0;
     }
 
