@@ -381,13 +381,17 @@ void notimplemented(struct lw_terminal* term, char *seq, char chr) {
 }
 
 void
+master_write(void *user_data, void *buffer, size_t len) {
+}
+
+void
 dowebserver(const char *port, int fd, struct winsize *w) {
     struct mg_mgr mgr;
     struct mg_connection *nc;
     struct lw_terminal_vt100 *term;
 
     term = lw_terminal_vt100_init(NULL, w->ws_col, w->ws_row, notimplemented);
-
+    term->master_write = master_write;
     // Set tab stops and other terminal attributes
     {
         int it;
