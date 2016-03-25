@@ -901,7 +901,7 @@ static void TBC(struct lw_terminal *term_emul)
     }
     else if (term_emul->argc == 1 && term_emul->argv[0] == 3)
     {
-        for (i = 0; i < 132; ++i)
+        for (i = 0; i < vt100->width; ++i)
             vt100->tabulations[i] = '-';
     }
 }
