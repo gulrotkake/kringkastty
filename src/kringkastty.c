@@ -66,6 +66,8 @@
 #include "io.h"
 #include "mongoose.h"
 #include "content.h"
+#include "lw_terminal_vt100.h"
+#include "buffer.h"
 
 #define HAVE_inet_aton
 #define HAVE_scsi_h
@@ -215,7 +217,7 @@ ttymain(argc, argv)
 
 	getmaster();
 	fixtty();
-        sigemptyset(&sa.sa_mask);
+    sigemptyset(&sa.sa_mask);
 	sa.sa_flags = 0;
 	sa.sa_handler = finish;
 	sigaction(SIGCHLD, &sa, NULL);
@@ -264,6 +266,92 @@ is_equal(const struct mg_str *s1, const struct mg_str *s2) {
     return s1->len == s2->len && memcmp(s1->p, s2->p, s2->len) == 0;
 }
 
+uint8_t
+get_mode(uint32_t mode) {
+    switch(mode) {
+    case 0x80000:
+        return 1;
+    case 0x100000:
+        return 4;
+    case 0x40000:
+        return 5;
+    case 0x200000:
+        return 7;
+    default:
+        return 0;
+    }
+}
+
+void
+print_ansi_sequence(uint32_t attr, buffer *buf) {
+    unsigned i;
+    unsigned int d = 0;
+    uint32_t modes[4] = {0x80000, 0x100000, 0x40000, 0x200000};
+    uint16_t color, highbit;
+    buf_printf(buf, "\033[");
+    if (attr == 0) {
+        buf_printf(buf, "0m");
+        return;
+    }
+
+    for (i = 0; i<sizeof(modes)/sizeof(uint32_t); ++i) {
+        if (attr & modes[i]) {
+            buf_printf(buf, d++? ";%d" : "%d", get_mode(modes[i]));
+        }
+    }
+
+    color = attr & 0xFF;
+    highbit = attr & 0x100;
+    if (highbit) {
+        buf_printf(buf, d++? ";38;5;%d" : "38;5;%d", color);
+    } else if ((color >= 30 && color < 38) || color == 39) {
+        buf_printf(buf, d++? ";%d" : "%d", color);
+    }
+
+    color = (attr >> 9) & 0xFF;
+    highbit = (attr >> 9) & 0x100;
+    if (highbit) {
+        buf_printf(buf, d++? ";48;5;%d" : "48;5;%d", color);
+    } else if ((color >= 40 && color < 48) || color == 49) {
+        buf_printf(buf, d++? ";%d" : "%d", color);
+    }
+
+    buf_printf(buf, "m");
+}
+
+void
+send_terminal(struct lw_terminal_vt100 *term, struct mg_connection *nc) {
+    unsigned int last = 0xFFFFFFFF;
+    unsigned int y, x;
+    uint32_t g = 0;
+    char c;
+    buffer buf;
+
+    // Send terminal meta data.
+    mg_printf_websocket_frame(nc, WEBSOCKET_OP_TEXT, "{\"x\":%d,\"y\":%d}", term->width, term->height);
+
+    // Send terminal display.
+    buf_init(&buf, BUFSIZ);
+    for (y = 0; y<term->height; ++y) {
+        for (x = 0; x<term->width; ++x) {
+            c = lw_terminal_vt100_get(term, x, y);
+            g = lw_terminal_vt100_graphics_rendition(term, x, y);
+            if (g != last) {
+                print_ansi_sequence(g, &buf);
+                last=g;
+            }
+            buf_write(&buf, &c, 1);
+        }
+    }
+
+    // Set cursor to correct position
+    buf_printf(&buf, "\033[%d;%dH", term->y + 1, term->x+1);
+
+    mg_printf_websocket_frame(nc, WEBSOCKET_OP_TEXT, buf_get(&buf), buf_len(&buf));
+
+    buf_free(&buf);
+}
+
 void
 ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
     switch (ev) {
@@ -271,12 +359,12 @@ ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
         nc->flags |= MG_F_SEND_AND_CLOSE;
         mg_printf(nc, "HTTP/1.1 200 OK\r\n"
                   "Content-Type: text/html\r\n"
-                  "Content-Length: %d\r\n\r\n", content_html_len);
-        mg_send(nc, content_html, content_html_len);
+                  "Content-Length: %d\r\n\r\n", build_content_html_len);
+        mg_send(nc, build_content_html, build_content_html_len);
         break;
     case MG_EV_WEBSOCKET_HANDSHAKE_DONE:
-        // Initial connection, send terminal size.
-        mg_send_websocket_frame(nc, WEBSOCKET_OP_TEXT, nc->mgr->user_data, strlen(nc->mgr->user_data));
+        // Initial connection, send terminal size and content
+        send_terminal((struct lw_terminal_vt100 *)nc->mgr->user_data, nc);
         break;
     case MG_EV_WEBSOCKET_FRAME:
     case MG_EV_CLOSE:
@@ -285,15 +373,22 @@ ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
     }
 }
 
+void notimplemented(struct lw_terminal* term, char *seq, char chr) {
+    (void)(term);
+    (void)(seq);
+    (void)(chr);
+}
+
 void
 dowebserver(const char *port, int fd, struct winsize *w) {
     struct mg_mgr mgr;
     struct mg_connection *nc;
+    struct lw_terminal_vt100 *term;
 
-    char json[25];
-    snprintf(json, 25, "{\"x\":%d,\"y\":%d}", MAX(80, MIN(1000, w->ws_col)), MAX(25, MIN(1000, w->ws_row)));
+    term = lw_terminal_vt100_init(NULL, w->ws_col, w->ws_row, notimplemented);
+    lw_terminal_vt100_read_str(term, "\033[?7h\033[20h");
 
-    mg_mgr_init(&mgr, json);
+    mg_mgr_init(&mgr, term);
     nc = mg_bind(&mgr, port, ev_handler);
 
     mg_set_protocol_http_websocket(nc);
@@ -302,11 +397,13 @@ dowebserver(const char *port, int fd, struct winsize *w) {
     int cc;
     while ((cc = read(fd, buf, BUFSIZ)) != 0) {
         if (cc > 0) {
+            lw_terminal_vt100_read_buffer(term, buf, cc);
             broadcast(nc, buf, cc);
         }
         mg_mgr_poll(&mgr, 200);
     }
     mg_mgr_free(&mgr);
+    lw_terminal_vt100_destroy(term);
 }
 
 void
