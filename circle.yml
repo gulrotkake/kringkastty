@@ -1,5 +1,8 @@
 dependencies:
   pre:
     - sudo apt-get install build-essential check ncurses-dev
-  test:
+  override:
     - make
+test:
+  override:
+    - /usr/bin/true
