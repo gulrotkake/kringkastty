@@ -9,7 +9,7 @@ void check_size(buffer *a, size_t needed) {
         a->size = ns>a->size*2
             ? ns
             : a->size*2;
-        a->buffer = realloc(a->buffer, a->size * sizeof(char));
+        a->buffer = (char*)realloc(a->buffer, a->size * sizeof(char));
     }
 }
 
@@ -22,7 +22,7 @@ char * buf_get(buffer *a) {
 }
 
 void buf_init(buffer *a, size_t initial) {
-    a->buffer = malloc(initial * sizeof(char));
+    a->buffer = (char*)malloc(initial * sizeof(char));
     a->used = 0;
     a->size = initial;
 }
@@ -43,7 +43,7 @@ void buf_printf(buffer *a, const char * format, ...) {
     va_end(ap2);
 }
 
-void buf_write(buffer *a, char *buffer, size_t len) {
+void buf_write(buffer *a, const char *buffer, size_t len) {
     check_size(a, len);
     memcpy(a->buffer+a->used, buffer, len);
     a->used += len;

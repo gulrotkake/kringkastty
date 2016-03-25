@@ -16,6 +16,6 @@ size_t buf_len(buffer *a);
 char * buf_get(buffer *a);
 
 void buf_printf(buffer *a, const char * format, ...);
-void buf_write(buffer *a, char *buffer, size_t len);
+void buf_write(buffer *a, const char *buffer, size_t len);
 
 #endif
