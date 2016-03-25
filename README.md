@@ -1,5 +1,7 @@
 # kringkastty
 
+[![Circle CI](https://circleci.com/gh/gulrotkake/kringkastty.svg?style=svg)](https://circleci.com/gh/gulrotkake/kringkastty)
+
 Standalone executable to broadcast a tty via websockets.
 
 Built upon code from other great projects:
