@@ -5,4 +5,4 @@ dependencies:
     - make
 test:
   override:
-    - /usr/bin/true
+    - true
