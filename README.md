@@ -12,3 +12,15 @@ Built upon code from other great projects:
 
 - **kringkast** Norwegian for broadcast
 - **tty** Commonly used abbreviation for terminal emulators, historically used as an abbreviation for a teletype.
+
+## Build instructions
+
+ From the project directory, run ``make``.
+
+## Usage
+
+  After building run ``./build/kringkastty``. A broadcast immediately becomes available at ``http://localhost:8080``
+  
+## Screenshots
+
+![Screenshot](extra/png/screenshot.png "Terminal + Browser")
