@@ -2,6 +2,7 @@ CC = gcc
 BUILD = build
 TARGET = kringkastty
 OS := $(shell uname)
+LIBS = -ltermcap
 
 ifeq ($(OS),Darwin)
 	CFLAGS = -g -Ibuild -Iinclude -I/usr/include/machine -O2 -Wall

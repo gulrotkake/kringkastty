@@ -55,6 +55,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <termcap.h>
 
 #if defined(SVR4)
 #include <fcntl.h>
@@ -386,7 +387,23 @@ dowebserver(const char *port, int fd, struct winsize *w) {
     struct lw_terminal_vt100 *term;
 
     term = lw_terminal_vt100_init(NULL, w->ws_col, w->ws_row, notimplemented);
-    lw_terminal_vt100_read_str(term, "\033[?7h\033[20h");
+
+    // Set tab stops and other terminal attributes
+    {
+        int it;
+        int i;
+        char buf[1024];
+
+        tgetent(NULL, getenv("TERM"));
+        it = tgetnum("it");
+        it = it>0? it : 8;
+        snprintf(buf, 1024, "%*s\033H", it, " ");
+        lw_terminal_vt100_read_str(term, "\033[3g");
+        for (i = it; i<term->width-it; i+=it) {
+            lw_terminal_vt100_read_str(term, buf);
+        }
+        lw_terminal_vt100_read_str(term, "\r\033[?7h\033[20h");
+    }
 
     mg_mgr_init(&mgr, term);
     nc = mg_bind(&mgr, port, ev_handler);
