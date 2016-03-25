@@ -27,7 +27,7 @@ void buf_init(buffer *a, size_t initial) {
     a->size = initial;
 }
 
-void buf_printf(buffer *a, const char * restrict format, ...) {
+void buf_printf(buffer *a, const char * format, ...) {
     va_list ap, ap2;
     int needed;
 

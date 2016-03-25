@@ -162,6 +162,7 @@ main(argc, argv)
         ioctl(0, TIOCGWINSZ, &w);
         dowebserver(server_port, fds[0], &w);
         close(fds[1]);
+        return 0;
     } else { // ttyrec
         close(fds[0]);
         int res= ttymain(argc, argv);
