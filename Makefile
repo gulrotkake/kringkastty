@@ -7,7 +7,7 @@ LIBS = -ltermcap
 ifeq ($(OS),Darwin)
 	CFLAGS = -g -Ibuild -Iinclude -I/usr/include/machine -O2 -Wall
 else
-	CFLAGS = -DSVR4 -D_GNU_SOURCE -O2 -g -fomit-frame-pointer -Wall
+	CFLAGS = -Ibuild -Iinclude -DSVR4 -D_GNU_SOURCE -O2 -g -fomit-frame-pointer -Wall
 endif
 
 OBJS = $(BUILD)/kringkastty.o $(BUILD)/mongoose.o $(BUILD)/io.o \
@@ -22,9 +22,15 @@ $(BUILD)/%.o: src/%.c $(BUILD)/content.h
 $(BUILD)/content.h: extra/js/*.js extra/css/content.css extra/html/content.tmpl
 	mkdir -p $(BUILD)
 	cat extra/html/content.tmpl > $(BUILD)/content.html
+ifeq ($(OS),Darwin)
 	sed -e '/\[\[main\]\]/ {' -e 'r extra/js/main.js' -e 'd' -e '}' -i '' $(BUILD)/content.html
 	sed -e '/\[\[style\]\]/ {' -e 'r extra/css/content.css' -e 'd' -e '}' -i '' $(BUILD)/content.html
 	sed -e '/\[\[term\]\]/ {' -e 'r extra/js/term.js' -e 'd' -e '}' -i '' $(BUILD)/content.html
+else
+	sed -e '/\[\[main\]\]/ {' -e 'r extra/js/main.js' -e 'd' -e '}' -i $(BUILD)/content.html
+	sed -e '/\[\[style\]\]/ {' -e 'r extra/css/content.css' -e 'd' -e '}' -i $(BUILD)/content.html
+	sed -e '/\[\[term\]\]/ {' -e 'r extra/js/term.js' -e 'd' -e '}' -i $(BUILD)/content.html
+endif
 	xxd -i $(BUILD)/content.html $(BUILD)/content.h
 
 kringkastty: $(OBJS)

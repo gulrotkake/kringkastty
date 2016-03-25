@@ -1,7 +1,7 @@
 #include <buffer.h>
 #include <stdio.h>
 #include <stdarg.h>
-#include <strings.h>
+#include <string.h>
 
 void check_size(buffer *a, size_t needed) {
     int ns = a->used + needed;
