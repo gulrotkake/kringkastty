@@ -1,8 +1,9 @@
 dependencies:
   pre:
-    - sudo apt-get install build-essential check ncurses-dev
+    - sudo apt-get install build-essential check ncurses-dev python27
   override:
-    - make
+    - ./waf configure
+    - ./waf
 test:
   override:
     - echo
