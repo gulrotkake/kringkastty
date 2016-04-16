@@ -361,8 +361,8 @@ ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
         nc->flags |= MG_F_SEND_AND_CLOSE;
         mg_printf(nc, "HTTP/1.1 200 OK\r\n"
                   "Content-Type: text/html\r\n"
-                  "Content-Length: %d\r\n\r\n", build_content_html_len);
-        mg_send(nc, build_content_html, build_content_html_len);
+                  "Content-Length: %d\r\n\r\n", content_h_len);
+        mg_send(nc, content_h, content_h_len);
         break;
     case MG_EV_WEBSOCKET_HANDSHAKE_DONE:
         // Initial connection, send terminal size and content

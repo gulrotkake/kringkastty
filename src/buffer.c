@@ -3,7 +3,7 @@
 #include <stdarg.h>
 #include <string.h>
 
-void check_size(buffer *a, size_t needed) {
+static void check_size(buffer *a, size_t needed) {
     int ns = a->used + needed;
     if (ns > a->size) {
         a->size = ns>a->size*2

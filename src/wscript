@@ -1,0 +1,13 @@
+def build(bld):
+    bld(features='c cprogram', source=[
+        'buffer.c',
+        'io.c',
+        'kringkastty.c',
+        'lw_terminal_parser.c',
+        'lw_terminal_vt100.c',
+        'mongoose.c',
+        'sgr.c'],
+        target='kringkastty',
+        includes='../include',
+        use = ['TERM']
+)
