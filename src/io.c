@@ -33,7 +33,9 @@
 
 #include <assert.h>
 #include <errno.h>
+#ifdef HAVE_ENDIAN_H
 #include <endian.h>
+#endif
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

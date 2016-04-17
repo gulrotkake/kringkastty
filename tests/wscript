@@ -1,0 +1,24 @@
+from waflib.Tools import waf_unit_test
+
+def build(bld):
+    bld(
+        features='cxx cxxprogram test',
+        source='buffer.cpp',
+        target='test_buffer',
+        includes=[
+            '../include',
+        ],
+        use = ['buffer']
+    )
+
+    bld(
+        features='cxx cxxprogram test',
+        source='sgr.cpp',
+        target='test_sgr',
+        includes=[
+            '../include',
+        ],
+        use = ['buffer', 'sgr']
+    )
+
+    bld.add_post_fun(waf_unit_test.summary)

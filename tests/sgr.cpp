@@ -1,6 +1,9 @@
 #include "tsetse.hpp"
+
+extern "C" {
 #include "buffer.h"
-#include <sgr.h>
+#include "sgr.h"
+}
 
 static uint32_t SGR(unsigned int argc, unsigned int *args)
 {

@@ -1,4 +1,23 @@
 def build(bld):
+    bld.stlib(
+        source = 'buffer.c',
+        target = 'buffer',
+        name = 'buffer',
+        includes=[
+            '../include',
+        ],
+    )
+
+    bld.stlib(
+        source = 'sgr.c',
+        target = 'sgr',
+        name = 'sgr',
+        includes=[
+            '../include',
+        ],
+        use = ['buffer']
+    )
+
     bld(features='c cprogram', source=[
         'buffer.c',
         'io.c',
@@ -8,6 +27,9 @@ def build(bld):
         'mongoose.c',
         'sgr.c'],
         target='kringkastty',
-        includes='../include',
-        use = ['TERM']
+        includes=[
+            '../include',
+            '../extra/include',
+        ],
+        use = ['buffer', 'sgr', 'TERM']
 )

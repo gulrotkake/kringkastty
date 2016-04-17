@@ -1,5 +1,8 @@
 #include "tsetse.hpp"
+
+extern "C" {
 #include "buffer.h"
+}
 
 TEST(buffer_null_on_free) {
     buffer buf;
