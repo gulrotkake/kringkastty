@@ -1,4 +1,5 @@
 #include "tsetse.hpp"
+#include <cstring>
 
 extern "C" {
 #include "buffer.h"
